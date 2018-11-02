@@ -227,5 +227,5 @@ a  b  c  d
 "Prints the specified dependency graph.
  Argument format:
  (node-name its-dependencies*)*"
-  `(print-dependency-graph-f '(,@dep-groups)))
+  `(print-dependency-graph-f ',dep-groups))
   
