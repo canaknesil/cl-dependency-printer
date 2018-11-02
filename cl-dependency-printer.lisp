@@ -8,18 +8,16 @@
 
 (defparameter *min-cell-size* 3)
 
-;; An example translation
+#|
+The comments for the internal functions uses this example dependency list:
+'(("a" "b" "c" "d")
+  ("b" "c" "a")
+  ("c" "d")
+  ("d"))
+|#
 
-;; The initial list (&rest dep-list)
-;; '(("a" "b" "c" "d")
-;;   ("b" "c" "a")
-;;   ("c" "d")
-;;   ("d"))
-
-
-;; Translates initial list to
-;; '("a" "b" "c" "d")
-;; which is the list of nodes
+;; Extracts the nodes from the dependency list
+;; Output: '("a" "b" "c" "d")
 (defun make-nodes (init-list)
   (mapcar #'(lambda (el) (car el))
 	  init-list))
@@ -39,40 +37,54 @@
     (if (> size *min-cell-size*) size *min-cell-size*)))
 
 
-;; decomposes one dependency group
+;; Decomposes one dependency group in the dependency list
 (defun decompose (deps)
   (let ((src (car deps))
 	(dst-list (cdr deps)))
     (mapcar #'(lambda (d) (list src d))
 	    dst-list)))
 
-;; Decomposes each dependencies.
-;; Example
-;; '((("a" "b") ("a" "c") ("a" "d"))
-;;   (("b" "c") ("b" "a"))
-;;   (("c" "d"))
-;;   ())
+#|
+Decomposes each dependency group in the dependency list.
+Output:
+'((("a" "b") ("a" "c") ("a" "d"))
+  (("b" "c") ("b" "a"))
+  (("c" "d"))
+  ())
+|#
 (defun decompose-all (list)
   (mapcar #'(lambda (e) (decompose e))
 	  list))
 
 
-;; Evaluates the position of the string in the list, start as the first position
+;; Evaluates the position of "str" string in the "list", "start" as the first position.
 (defun get-pos (str list start)
   (if (equal str (car list))
       start
       (get-pos str (cdr list) (1+ start))))
 
 
-;; Replaces strings with positions in the list recursively.
+#|
+Replaces strings in the list "obj" with their positions in the "list" recursively.
+Output:
+'(((0 1) (0 2) (0 3)) 
+  ((1 2) (1 0)) 
+  ((2 3)) 
+  ())
+|#
 (defun str2pos (obj list)
   (if (stringp obj) (get-pos obj list 0)
       (mapcar #'(lambda (el) (str2pos el list))
 	      obj)))
 
 
-;; Put empty lines in front of dependency groups
-;; and splice the inner lists.
+#|
+Puts empty lines in front of dependency groups and splices the inner lists.
+Output:
+'((-1 -1) (0 1) (0 2) (0 3) 
+  (-1 -1) (1 2) (1 0) 
+  (-1 -1) (2 3))
+|#
 (defun put-gaps-and-splice (dep-list)
   (if (equal dep-list nil) nil
       (let ((first (car dep-list))
@@ -83,7 +95,7 @@
 		    (put-gaps-and-splice rest))))))
 
 
-
+;; Creates the draft for a dependency line where the direction of the arrow is from left to right.
 (defun make-line-forward (from to size)
   (if (eql size 0) nil
       (let ((sym (cond ((> from 0) 'empty)
@@ -92,6 +104,7 @@
 		       (t 'empty))))
 	(cons sym (make-line-forward (- from 1) (- to 1) (- size 1))))))
 
+;; Creates the draft for a dependency line where the direction of the arrow is from right to left.
 (defun make-line-backword (from to size)
   (if (eql size 0) nil
       (let ((sym (cond ((> to 0) 'empty)
@@ -100,9 +113,8 @@
 		       (t 'empty))))
 	(cons sym (make-line-backword (- from 1) (- to 1) (- size 1))))))
 
-;; For each dependency create the line
-;; For the first dependency, output is
-;; '(forward empty empty)
+
+;;For a dependency, creates the dependency line draft.
 (defun make-line (dep size)
   (let ((from (first dep))
 	(to (second dep)))
@@ -111,14 +123,27 @@
 	(make-line-forward from (- to 1) (- size 1)))))
 
 
+#|
+For each dependency in the list, creates the dependency line draft
+Output:
+'((EMPTY EMPTY EMPTY) 
+  (ARROW EMPTY EMPTY) 
+  (BAR ARROW EMPTY) 
+  (BAR BAR ARROW)
+  
+  (EMPTY EMPTY EMPTY) 
+  (EMPTY ARROW EMPTY) 
+  (B-ARROW EMPTY EMPTY)
+  
+  (EMPTY EMPTY EMPTY) 
+  (EMPTY EMPTY ARROW))
+|#
 (defun make-lines (dep-list size)
   (mapcar #'(lambda (l) (make-line l size))
 	  dep-list))
 
 
-;; Print dependency line
-"|->|  |  |"
-
+;; Prints a dependency line
 (defun print-line (line cell-size)
   (if (equal line nil) (format t "| ~%")
       (progn
@@ -135,13 +160,26 @@
 	(print-line (cdr line) cell-size))))
 
 
+#|
+Prints all dependency lines
+Output:
+|  |  |  | 
+|->|  |  | 
+|--|->|  | 
+|--|--|->| 
+|  |  |  | 
+|  |->|  | 
+|<-|  |  | 
+|  |  |  | 
+|  |  |->|
+|#
 (defun print-dep-lines (line-list cell-size)
   (mapcar #'(lambda (l) (print-line l cell-size))
 	  line-list))
 
 
 ;; Prints the first line containing the names of the nodes
-
+;; Output: a  b  c  d
 (defun print-first-line (nodes cell-size)
   (if (eql nodes nil) (format t "~%")
       (let ((first (car nodes))
@@ -152,7 +190,19 @@
 	(print-first-line rest cell-size))))
 	
 			  
-
+#|
+Output:
+a  b  c  d  
+|  |  |  | 
+|->|  |  | 
+|--|->|  | 
+|--|--|->| 
+|  |  |  | 
+|  |->|  | 
+|<-|  |  | 
+|  |  |  | 
+|  |  |->|
+|#
 (defun print-dependency-graph-f (dep-list)
   (let* ((nodes (make-nodes dep-list))
 	 (cell-size (make-cell-size nodes))
@@ -174,5 +224,8 @@
     	 
     
 (defmacro print-dependency-graph (&rest dep-groups)
+"Prints the specified dependency graph.
+ Argument format:
+ (node-name its-dependencies*)*"
   `(print-dependency-graph-f '(,@dep-groups)))
   
